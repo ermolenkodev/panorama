@@ -19,7 +19,7 @@ dependencies {
     implementation("org.tensorflow:libtensorflow:1.15.0")
     implementation("org.tensorflow:libtensorflow_jni_gpu:1.15.0")
     implementation("org.jetbrains.kotlinx:multik-api:0.1.1")
-    implementation("org.jetbrains.kotlinx:multik-default:0.1.1")
+    implementation("org.jetbrains.kotlinx:multik-jvm:0.1.1")
     testImplementation(kotlin("test"))
 }
 

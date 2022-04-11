@@ -6,6 +6,10 @@ import org.jetbrains.kotlinx.multik.ndarray.data.MemoryViewByteArray
 import org.opencv.core.CvType.CV_8UC3
 import org.opencv.core.Mat
 
+/**
+ * Useful extension function to simplify types conversion between OpenCV and multik
+ **/
+
 fun Mat.asD3ByteArray() : D3Array<Byte> {
     val data = ByteArray((this.total() * this.channels()).toInt())
     this.get(0, 0, data)

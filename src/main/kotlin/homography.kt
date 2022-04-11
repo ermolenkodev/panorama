@@ -3,15 +3,24 @@ import org.jetbrains.kotlinx.multik.api.linalg.solve
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
 import org.jetbrains.kotlinx.multik.ndarray.data.*
 import org.jetbrains.kotlinx.multik.ndarray.operations.minus
+import org.jetbrains.kotlinx.multik.ndarray.operations.stack
 import org.opencv.calib3d.Calib3d
 import org.opencv.core.*
 import java.util.Random
 import java.util.logging.Logger
 
+/**
+ * Interface aim to encapsulate Homography estimation logic
+ **/
 sealed interface EstimateHomographyAlgorithm {
     fun estimateHomography(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<D2Array<Double>>
 }
 
+/**
+ * Homography estimation implementation using Multik
+ * It's very naive implementation using Ransac and DLT algorithm
+ * The only purpose of this is to practice to work with Multik and Kotlin
+ **/
 class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipeline) : EstimateHomographyAlgorithm {
     companion object {
         val LOG = Logger.getLogger(MultikImplementation::class.java.name)
@@ -45,7 +54,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         }
     }
 
-    fun estimateHomographyRANSAC(pointsLhs: List<Point>, pointsRhs: List<Point>) : Output<D2Array<Double>> {
+    private fun estimateHomographyRANSAC(pointsLhs: List<Point>, pointsRhs: List<Point>) : Output<D2Array<Double>> {
         if (pointsLhs.size != pointsRhs.size) {
             return Output.Failure("estimateHomographyRANSAC: points_lhs.size() != points_rhs.size()")
         }
@@ -101,6 +110,11 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         }
     }
 
+    /**
+     * DLT algorithm
+     * Solving system of 8 equation formed from 4 point correspondences
+     * Solution is 8 elements of homography matrix and the 9th element is known to be 1.0
+     **/
     private fun estimateHomography4Points(
         l0: Point,
         l1: Point,
@@ -129,16 +143,23 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         return try {
             val h = JvmLinAlg.solve(A[0..8, 0..8], A[0..8, 8])
 
-            Output.Success(mk.ndarray(DoubleArray(9) { idx -> when {
-                idx < 8 -> h[idx]
-                else -> 1.0
-            }}).reshape(3, 3))
+            Output.Success(
+                mk.ndarray(DoubleArray(9) {
+                        idx -> when {
+                            idx < 8 -> h[idx]
+                            else -> 1.0
+                        }
+                }).reshape(3, 3)
+            )
         } catch (e: RuntimeException) {
             Output.Failure("Failed to solve DLT system", e)
         }
     }
 }
 
+/**
+ * Reference implementation of homography estimation using OpenCV
+ **/
 class OpencvImplementation(private val keypointsPipeline: KeypointsMatchingPipeline) :
     EstimateHomographyAlgorithm {
     override fun estimateHomography(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<D2Array<Double>> {

@@ -7,8 +7,9 @@ import org.jetbrains.kotlinx.multik.ndarray.operations.stack
 import org.opencv.core.MatOfPoint2f
 import org.opencv.core.Point
 
-
-
+/**
+ * Useful extension function for OpenCV Point class
+ **/
 
 operator fun Point.plus(point: Point) : Point {
     return Point(this.x + point.x, this.y + point.y)

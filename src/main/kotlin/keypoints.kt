@@ -5,6 +5,14 @@ import org.opencv.features2d.SIFT
 
 typealias PointsCorrespondences = Pair<List<Point>, List<Point>>
 
+/**
+ * Interface aim to encapsulate keypoint matching and filtering logic
+ * This is one of the key stages in panorama stitching.
+ * It's usually consist of following substages:
+ *  - Keypoints detection
+ *  - Keypoints matching
+ *  - Matches filtering
+ **/
 sealed interface KeypointsMatchingPipeline {
     fun run(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<PointsCorrespondences>
 }

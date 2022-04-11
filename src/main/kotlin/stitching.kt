@@ -4,19 +4,32 @@ import org.jetbrains.kotlinx.multik.api.linalg.inv
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
 import org.jetbrains.kotlinx.multik.ndarray.data.*
 import org.opencv.core.*
-import org.opencv.features2d.FlannBasedMatcher
-import org.opencv.features2d.SIFT
 import java.util.*
-import java.util.logging.Logger
 import java.util.stream.IntStream
 import kotlin.math.round
 
+/**
+ * A class that implements panorama stitching.
+ * Standard computer vision pipeline implemented:
+ *  - Keypoints detection
+ *  - Keypoints matching
+ *  - Matches filtering
+ *  - Homographies estimation
+ *  - Warping images to resulted panorama
+ **/
 class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgorithm) {
+    /**
+     * Stitch panorama from array of imgs where each image should be stitched to previous
+     **/
     fun stitchPanorama(imgs: List<D3Array<Byte>>) : Output<D3Array<Byte>> {
         val n = imgs.size
         return stitchPanorama(imgs, listOf( -1 until  n).flatten())
     }
 
+    /**
+     * General case of stitching where images may form a tree.
+     * It means that multiple images should be stitched to common parent image
+     **/
     fun stitchPanorama(imgs: List<D3Array<Byte>>, parent: List<Int>) : Output<D3Array<Byte>> {
         val result = estimateHomographyForEachImg(imgs, parent)
 
@@ -47,6 +60,9 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
         return Output.Success(panorama)
     }
 
+    /**
+     * Compute homography from each image down to root image of image tree
+     **/
     private fun estimateHomographyForEachImg(imgs: List<D3Array<Byte>>,
                                              parent: List<Int>) : Output<List<D2Array<Double>>> {
         val n = imgs.size
@@ -97,12 +113,20 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
         return bbox
     }
 
+    /**
+     * Transform every pixel of panorama using computed Homographies.
+     * If resulted point correspond one of the imgs copy that pixel value to the panorama
+     **/
     private fun warpImages(imgs: List<D3Array<Byte>>, bbox: Bbox,
                            HsInv: List<D2Array<Double>>,
                            result: D3Array<Byte>) {
         val resultWidth: Int = bbox.width() + 1
         val resultHeight: Int = bbox.height() + 1
 
+        /**
+         * Parallelization by panorama rows
+         * TODO find more efficient way to parallelize this task
+         */
         IntStream.range(0, resultHeight)
             .parallel()
             .forEach { y ->
@@ -126,37 +150,5 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
                     }
                 }
             }
-    }
-}
-
-fun main() {
-    nu.pattern.OpenCV.loadShared()
-
-    val io = OpencvImageIo()
-
-    val imgs = io.batchRead(listOf(
-        "${projectRoot()}/assets/hiking_left.JPG",
-        "${projectRoot()}/assets/hiking_right.JPG"
-    ))
-
-    val detector = OpencvSiftDetector(SIFT.create())
-    val matcher = OpencvFlannMatcher(FlannBasedMatcher.create())
-
-    val keypointPipeline = OpencvKeypointsPipeline(detector, matcher)
-
-    val homographyAlgorithm = MultikImplementation(keypointPipeline)
-
-    val stitchingAlgorithm = StitchingAlgorithm(homographyAlgorithm)
-
-    val result = stitchingAlgorithm.stitchPanorama(imgs)
-
-    val logger = Logger.getLogger(StitchingAlgorithm::class.java.name)
-    when (result) {
-        is Output.Failure -> logger.info("Failed to stitch panorama. Error msg - ${result.msg}")
-        is Output.Success -> {
-            val path = "${projectRoot()}/assets/debug_imgs/result.jpg"
-            logger.info("Panorama created successfully. Check the result at $path")
-            io.imwrite(path, result.data)
-        }
     }
 }

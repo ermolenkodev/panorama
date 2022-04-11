@@ -1,6 +1,37 @@
+import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
 import org.opencv.core.*
 import org.opencv.features2d.FlannBasedMatcher
 import org.opencv.features2d.SIFT
+
+typealias PointsCorrespondences = Pair<List<Point>, List<Point>>
+
+sealed interface KeypointsMatchingPipeline {
+    fun run(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<PointsCorrespondences>
+}
+
+class OpencvKeypointsPipeline(
+    private val detector: OpencvSiftDetector,
+    private val matcher: OpencvFlannMatcher
+) : KeypointsMatchingPipeline {
+    override fun run(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<PointsCorrespondences> {
+        return try {
+            val (keypoints1, descriptors1) = detector.detectAndCompute(img1.asMat())
+            val (keypoints2, descriptors2) = detector.detectAndCompute(img2.asMat())
+
+            val matches: List<DMatch> = matcher.match(descriptors1, descriptors2)
+                .ratioTestFilter(ratio = 0.7f)
+                .map { it.first }
+
+            val points1: List<Point> = matches.map { keypoints1[it.queryIdx].pt }
+            val points2: List<Point> = matches.map { keypoints2[it.trainIdx].pt }
+
+            Output.Success(points1 to points2)
+        } catch (e: RuntimeException) {
+            Output.Failure("Failed to find corresponding keypoint on two images", e)
+        }
+    }
+
+}
 
 class OpencvSiftDetector(private val detector: SIFT) {
     fun detectAndCompute(img: Mat): Pair<List<KeyPoint>, Mat> {
@@ -13,7 +44,7 @@ class OpencvSiftDetector(private val detector: SIFT) {
 }
 
 class OpencvFlannMatcher(private val matcher: FlannBasedMatcher) {
-    fun match(descriptors1: Mat, descriptors2: Mat) : List<Pair<DMatch, DMatch>> {
+    fun match(descriptors1: Mat, descriptors2: Mat): List<Pair<DMatch, DMatch>> {
         val matches = mutableListOf<MatOfDMatch>()
         matcher.knnMatch(descriptors1, descriptors2, matches, 2)
 

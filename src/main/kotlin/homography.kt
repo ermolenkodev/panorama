@@ -3,7 +3,6 @@ import org.jetbrains.kotlinx.multik.api.linalg.solve
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
 import org.jetbrains.kotlinx.multik.ndarray.data.*
 import org.jetbrains.kotlinx.multik.ndarray.operations.minus
-import org.jetbrains.kotlinx.multik.ndarray.operations.stack
 import org.opencv.calib3d.Calib3d
 import org.opencv.core.*
 import java.util.Random
@@ -44,47 +43,45 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
 
         val nMatches = pointsLhs.size
         val nTrials = 100
-        val nSamples = 4
-        val seed = 1007L
         val pxErrorThresh = 2.0
+
         var bestSupport = 0
         var bestH: D2Array<Double> = mk.ones(3, 3)
 
+        // random 4 points to use for H estimation
+        // sampled randomly on each iteration of RANSAC
         val sample: MutableList<Int> = mutableListOf()
 
         for (trial in 0 until nTrials) {
             try {
-                randomSample(sample, nMatches, nSamples, seed)
+                randomSample(sample, nMatches)
             } catch (e: RuntimeException) {
                 LOG.info(e.message)
                 continue
             }
 
-            val result = estimateHomography4Points(
-                pointsLhs[sample[0]], pointsLhs[sample[1]], pointsLhs[sample[2]], pointsLhs[sample[3]],
-                pointsRhs[sample[0]], pointsRhs[sample[1]], pointsRhs[sample[2]], pointsRhs[sample[3]]
-            )
+            // random pairs in the following form - point on image1 -> corresponding point on image2
+            val pointsPairs = sample.map { randomId -> pointsLhs[randomId] to pointsRhs[randomId] }
+
+            val result = estimateHomography4Points(pointsPairs)
 
             val H = when (result) {
                 is Output.Failure -> continue
                 is Output.Success -> result.data
             }
 
-            var support = 0
-            for (idx in 0 until nMatches) {
+            // count points which projection error (in pixels) less than threshold
+            val support = pointsLhs.indices.count { idx ->
                 val proj = pointsLhs[idx] transform H
-                if (JvmLinAlg.norm(proj.asMk() - pointsRhs[idx].asMk()) < pxErrorThresh) {
-                    ++support
-                }
+                JvmLinAlg.norm(proj.asMk() - pointsRhs[idx].asMk()) < pxErrorThresh
             }
 
             if (support > bestSupport) {
                 bestSupport = support
                 bestH = H
-                if (bestSupport == nMatches) {
-                    break
-                }
             }
+
+            if (bestSupport == nMatches) break
         }
 
         return when (bestSupport) {
@@ -99,28 +96,21 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
      * Solution is 8 elements of homography matrix and the 9th element is known to be 1.0
      **/
     private fun estimateHomography4Points(
-        l0: Point,
-        l1: Point,
-        l2: Point,
-        l3: Point,
-        r0: Point,
-        r1: Point,
-        r2: Point,
-        r3: Point,
+        pointsPairs: List<Pair<Point, Point>> 
     ): Output<D2Array<Double>> {
-        val xs0 = mk.ndarray(mk[l0.x, l1.x, l2.x, l3.x])
-        val xs1 = mk.ndarray(mk[r0.x, r1.x, r2.x, r3.x])
-        val ys0 = mk.ndarray(mk[l0.y, l1.y, l2.y, l3.y])
-        val ys1 = mk.ndarray(mk[r0.y, r1.y, r2.y, r3.y])
-        val ws0 = mk.ndarray(mk[1.0, 1.0, 1.0, 1.0])
-        val ws1 = mk.ndarray(mk[1.0, 1.0, 1.0, 1.0])
-
         val A = mk.zeros<Double>(8, 9)
-        for (i in 0 until 4) {
-            val (x0, x1, y0) = listOf(xs0[i], xs1[i], ys0[i])
-            val (y1, w0, w1) = listOf(ys1[i], ws0[i], ws1[i])
-            A[2 * i] = mk.ndarray(mk[0.0, 0.0, 0.0, -x0 * w1, -y0 * w1, -w0 * w1, x0 * y1, y0 * y1, -w0 * y1])
-            A[2 * i + 1] = mk.ndarray(mk[x0 * w1, y0 * w1, w0 * w1, 0.0, 0.0, 0.0, -x0 * x1, -y0 * x1, w0 * x1])
+        for (i in pointsPairs.indices) {
+            val points = pointsPairs[i].toList()
+            val x = points.map { it.x }
+            val y = points.map { it.y }
+            val w = listOf(1.0, 1.0)
+
+            A[2 * i] = mk.ndarray(
+                mk[0.0, 0.0, 0.0, -x[0] * w[1], -y[0] * w[1], -w[0] * w[1], x[0] * y[1], y[0] * y[1], -w[0] * y[1]]
+            )
+            A[2 * i + 1] = mk.ndarray(
+                mk[x[0] * w[1], y[0] * w[1], w[0] * w[1], 0.0, 0.0, 0.0, -x[0] * x[1], -y[0] * x[1], w[0] * x[1]]
+            )
         }
 
         return try {
@@ -139,7 +129,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         }
     }
 
-    private fun randomSample(dst: MutableList<Int>, maxId: Int, sampleSize: Int, seed: Long = 1007) {
+    private fun randomSample(dst: MutableList<Int>, maxId: Int, sampleSize: Int = 4, seed: Long = 1007) {
         dst.clear()
         val attempts = 1000
         val rand = Random(seed)

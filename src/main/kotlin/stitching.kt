@@ -21,10 +21,7 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
     /**
      * Stitch panorama from array of imgs where each image should be stitched to previous
      **/
-    fun stitchPanorama(imgs: List<D3Array<Byte>>) : Output<D3Array<Byte>> {
-        val n = imgs.size
-        return stitchPanorama(imgs, listOf( -1 until  n).flatten())
-    }
+    fun stitchPanorama(imgs: List<D3Array<Byte>>) = stitchPanorama(imgs, (-1 until imgs.size).toList())
 
     /**
      * General case of stitching where images may form a tree.
@@ -125,6 +122,8 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
 
         /**
          * Parallelization by panorama rows
+         * This task is a perfect fit for massively parallel implementation
+         * so ideally it should be implemented on gpu
          * TODO find more efficient way to parallelize this task
          */
         IntStream.range(0, resultHeight)

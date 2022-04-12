@@ -25,6 +25,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
     companion object {
         val LOG = Logger.getLogger(MultikImplementation::class.java.name)
     }
+
     override fun estimateHomography(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<D2Array<Double>> {
         val result = keypointsPipeline.run(img1, img2)
 
@@ -35,41 +36,23 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
 
         return estimateHomographyRANSAC(points1, points2)
     }
-    private fun randomSample(dst: MutableList<Int>, maxId: Int, sampleSize: Int, seed: Long = 1007) {
-        dst.clear()
-        val attempts = 1000
-        val rand = Random(seed)
 
-        for (i in 0 until sampleSize) {
-            for (k in 0 until attempts) {
-                val v: Int = rand.nextInt(maxId)
-                if (v !in dst) {
-                    dst.add(v)
-                    break
-                }
-            }
-            if (dst.size < i + 1) {
-                throw RuntimeException("Failed to sample ids")
-            }
-        }
-    }
-
-    private fun estimateHomographyRANSAC(pointsLhs: List<Point>, pointsRhs: List<Point>) : Output<D2Array<Double>> {
+    private fun estimateHomographyRANSAC(pointsLhs: List<Point>, pointsRhs: List<Point>): Output<D2Array<Double>> {
         if (pointsLhs.size != pointsRhs.size) {
             return Output.Failure("estimateHomographyRANSAC: points_lhs.size() != points_rhs.size()")
         }
-        
+
         val nMatches = pointsLhs.size
         val nTrials = 100
         val nSamples = 4
         val seed = 1007L
         val pxErrorThresh = 2.0
         var bestSupport = 0
-        var bestH : D2Array<Double> = mk.ones(3, 3)
-        
-        val sample : MutableList<Int> = mutableListOf()
+        var bestH: D2Array<Double> = mk.ones(3, 3)
 
-        for (trial in 0 until  nTrials) {
+        val sample: MutableList<Int> = mutableListOf()
+
+        for (trial in 0 until nTrials) {
             try {
                 randomSample(sample, nMatches, nSamples, seed)
             } catch (e: RuntimeException) {
@@ -136,23 +119,42 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         for (i in 0 until 4) {
             val (x0, x1, y0) = listOf(xs0[i], xs1[i], ys0[i])
             val (y1, w0, w1) = listOf(ys1[i], ws0[i], ws1[i])
-            A[2*i] = mk.ndarray(mk[0.0, 0.0, 0.0, -x0*w1, -y0*w1, -w0*w1, x0*y1, y0*y1, -w0*y1])
-            A[2*i+1] = mk.ndarray(mk[x0*w1, y0*w1, w0*w1, 0.0, 0.0, 0.0, -x0*x1, -y0*x1, w0*x1])
+            A[2 * i] = mk.ndarray(mk[0.0, 0.0, 0.0, -x0 * w1, -y0 * w1, -w0 * w1, x0 * y1, y0 * y1, -w0 * y1])
+            A[2 * i + 1] = mk.ndarray(mk[x0 * w1, y0 * w1, w0 * w1, 0.0, 0.0, 0.0, -x0 * x1, -y0 * x1, w0 * x1])
         }
 
         return try {
             val h = JvmLinAlg.solve(A[0..8, 0..8], A[0..8, 8])
 
             Output.Success(
-                mk.ndarray(DoubleArray(9) {
-                        idx -> when {
-                            idx < 8 -> h[idx]
-                            else -> 1.0
-                        }
+                mk.ndarray(DoubleArray(9) { idx ->
+                    when {
+                        idx < 8 -> h[idx]
+                        else -> 1.0
+                    }
                 }).reshape(3, 3)
             )
         } catch (e: RuntimeException) {
             Output.Failure("Failed to solve DLT system", e)
+        }
+    }
+
+    private fun randomSample(dst: MutableList<Int>, maxId: Int, sampleSize: Int, seed: Long = 1007) {
+        dst.clear()
+        val attempts = 1000
+        val rand = Random(seed)
+
+        for (i in 0 until sampleSize) {
+            for (k in 0 until attempts) {
+                val v: Int = rand.nextInt(maxId)
+                if (v !in dst) {
+                    dst.add(v)
+                    break
+                }
+            }
+            if (dst.size < i + 1) {
+                throw RuntimeException("Failed to sample ids")
+            }
         }
     }
 }

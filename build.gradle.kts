@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.31"
+    kotlin("jvm") version "1.6.20"
 }
 
 group = "org.example"
@@ -20,7 +20,7 @@ dependencies {
     implementation("org.tensorflow:libtensorflow_jni_gpu:1.15.0")
     implementation("org.jetbrains.kotlinx:multik-api:0.1.1")
     implementation("org.jetbrains.kotlinx:multik-jvm:0.1.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
     testImplementation(kotlin("test"))
 }
 

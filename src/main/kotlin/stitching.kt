@@ -1,10 +1,14 @@
-import org.jetbrains.kotlinx.multik.api.*
+import org.jetbrains.kotlinx.multik.api.identity
 import org.jetbrains.kotlinx.multik.api.linalg.dot
 import org.jetbrains.kotlinx.multik.api.linalg.inv
+import org.jetbrains.kotlinx.multik.api.mk
+import org.jetbrains.kotlinx.multik.api.zeros
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
-import org.jetbrains.kotlinx.multik.ndarray.data.*
-import org.opencv.core.*
-import java.util.*
+import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
+import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
+import org.jetbrains.kotlinx.multik.ndarray.data.get
+import org.jetbrains.kotlinx.multik.ndarray.data.set
+import org.opencv.core.Point
 import java.util.stream.IntStream
 import kotlin.math.round
 
@@ -27,7 +31,7 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
      * General case of stitching where images may form a tree.
      * It means that multiple images should be stitched to common parent image
      **/
-    fun stitchPanorama(imgs: List<D3Array<Byte>>, parent: List<Int>) : Output<D3Array<Byte>> {
+    fun stitchPanorama(imgs: List<D3Array<Byte>>, parent: List<Int>): Output<D3Array<Byte>> {
         val result = estimateHomographyForEachImg(imgs, parent)
 
         val Hs = when (result) {
@@ -60,8 +64,10 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
     /**
      * Compute homography from each image down to root image of image tree
      **/
-    private fun estimateHomographyForEachImg(imgs: List<D3Array<Byte>>,
-                                             parent: List<Int>) : Output<List<D2Array<Double>>> {
+    private fun estimateHomographyForEachImg(
+        imgs: List<D3Array<Byte>>,
+        parent: List<Int>
+    ): Output<List<D2Array<Double>>> {
         val n = imgs.size
 
         val edges: MutableMap<Pair<Int, Int>, D2Array<Double>> = HashMap()
@@ -97,7 +103,7 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
         return Output.Success(Hs)
     }
 
-    private fun estimateResultBBox(imgs: List<D3Array<Byte>>, Hs: List<D2Array<Double>>) : Bbox {
+    private fun estimateResultBBox(imgs: List<D3Array<Byte>>, Hs: List<D2Array<Double>>): Bbox {
         val bbox = Bbox()
         for (i in imgs.indices) {
             val (h, w, _) = imgs[i].shape
@@ -114,9 +120,11 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
      * Transform every pixel of panorama using computed Homographies.
      * If resulted point correspond one of the imgs copy that pixel value to the panorama
      **/
-    private fun warpImages(imgs: List<D3Array<Byte>>, bbox: Bbox,
-                           HsInv: List<D2Array<Double>>,
-                           result: D3Array<Byte>) {
+    private fun warpImages(
+        imgs: List<D3Array<Byte>>, bbox: Bbox,
+        HsInv: List<D2Array<Double>>,
+        result: D3Array<Byte>
+    ) {
         val resultWidth: Int = bbox.width() + 1
         val resultHeight: Int = bbox.height() + 1
 

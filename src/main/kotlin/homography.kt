@@ -1,11 +1,18 @@
-import org.jetbrains.kotlinx.multik.api.*
 import org.jetbrains.kotlinx.multik.api.linalg.solve
+import org.jetbrains.kotlinx.multik.api.mk
+import org.jetbrains.kotlinx.multik.api.ndarray
+import org.jetbrains.kotlinx.multik.api.ones
+import org.jetbrains.kotlinx.multik.api.zeros
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
-import org.jetbrains.kotlinx.multik.ndarray.data.*
+import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
+import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
+import org.jetbrains.kotlinx.multik.ndarray.data.get
+import org.jetbrains.kotlinx.multik.ndarray.data.set
 import org.jetbrains.kotlinx.multik.ndarray.operations.minus
 import org.opencv.calib3d.Calib3d
-import org.opencv.core.*
-import java.util.Random
+import org.opencv.core.Mat
+import org.opencv.core.Point
+import java.util.*
 import java.util.logging.Logger
 
 /**
@@ -96,7 +103,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
      * Solution is 8 elements of homography matrix and the 9th element is known to be 1.0
      **/
     private fun estimateHomography4Points(
-        pointsPairs: List<Pair<Point, Point>> 
+        pointsPairs: List<Pair<Point, Point>>
     ): Output<D2Array<Double>> {
         val A = mk.zeros<Double>(8, 9)
         for (i in pointsPairs.indices) {

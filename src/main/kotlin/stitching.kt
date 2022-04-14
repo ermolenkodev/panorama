@@ -3,7 +3,6 @@ import org.jetbrains.kotlinx.multik.api.linalg.dot
 import org.jetbrains.kotlinx.multik.api.linalg.inv
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.zeros
-import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
 import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
 import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
 import org.jetbrains.kotlinx.multik.ndarray.data.get
@@ -85,7 +84,6 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
             }
         }
 
-//        val Hs: MutableList<D2Array<Double>> = mutableListOf()
         val Hs = List(n) {
             var p = it
             var H: D2Array<Double> = mk.identity(3)

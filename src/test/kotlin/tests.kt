@@ -1,3 +1,4 @@
+import org.jetbrains.kotlinx.multik.api.JvmEngineType
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
 import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
@@ -12,6 +13,7 @@ internal class StitchSampleImagesTest {
     val io = OpencvImageIo()
 
     init {
+        mk.setEngine(JvmEngineType)
         nu.pattern.OpenCV.loadShared()
         imgs = io.batchRead(
             listOf(

@@ -16,17 +16,13 @@ operator fun Point.plus(point: Point): Point {
     return Point(this.x + point.x, this.y + point.y)
 }
 
-fun List<Point>.toMatOfPoints(): MatOfPoint2f {
-    val m = MatOfPoint2f()
-    m.fromList(this)
-
-    return m
-}
+fun List<Point>.toMatOfPoints(): MatOfPoint2f = MatOfPoint2f().also { it.fromList(this) }
 
 infix fun Point.transform(H: D2Array<Double>): Point {
-    val transformed = JvmLinAlg.dot(H, mk.ndarray(mk[x, y, 1.0], 3, 1))
-    val w = transformed[2, 0]
-    if (w == 0.0) throw RuntimeException("Invalid result of homogenous transform")
+    val transformed = H dot mk.ndarray(mk[x, y, 1.0], 3, 1)
+
+    if (transformed[2, 0] == 0.0) throw RuntimeException("Invalid result of homogenous transform")
+
     return Point(transformed[0, 0], transformed[1, 0])
 }
 
@@ -43,5 +39,5 @@ fun Point.repeatAsColumn(n: Int): D2Array<Double> {
 }
 
 fun Point.asMk(): D2Array<Double> {
-    return mk.ndarray(mk[this.x, this.y]).reshape(2, 1)
+    return mk.ndarray(mk[this.x, this.y], 2, 1)
 }

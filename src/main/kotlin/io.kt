@@ -2,7 +2,7 @@ import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
 import org.opencv.core.Mat
 import org.opencv.imgcodecs.Imgcodecs
 
-sealed interface ImageIo {
+interface ImageIo {
     fun imread(path: String): D3Array<Byte>
     fun imwrite(path: String, img: D3Array<Byte>)
 }

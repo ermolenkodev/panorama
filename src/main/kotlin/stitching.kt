@@ -25,7 +25,8 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
     /**
      * Stitch panorama from array of imgs where each image should be stitched to previous
      **/
-    fun stitchPanorama(imgs: List<D3Array<Byte>>) = stitchPanorama(imgs, (-1 until imgs.size).toList())
+    fun stitchPanorama(imgs: List<D3Array<Byte>>): Output<D3Array<Byte>> =
+        stitchPanorama(imgs, (-1 until imgs.size).toList())
 
     /**
      * General case of stitching where images may form a tree.
@@ -41,13 +42,10 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
 
         val bbox = estimateResultBBox(imgs, Hs)
 
-        val resultWidth: Int = bbox.width() + 1
-        val resultHeight: Int = bbox.height() + 1
-
-        val panorama = mk.zeros<Byte>(resultHeight, resultWidth, 3)
+        val panorama = mk.zeros<Byte>(bbox.height() + 1, bbox.width() + 1, 3)
 
         val HsInv = try {
-            Hs.map { JvmLinAlg.inv(it) }
+            Hs.map { mk.linalg.inv(it) }
         } catch (e: RuntimeException) {
             return Output.Failure("Failed to invert one of the Homography matrix", e)
         }
@@ -87,17 +85,17 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
             }
         }
 
-        val Hs: MutableList<D2Array<Double>> = mutableListOf()
-        for (i in 0 until n) {
-            var p = i
+//        val Hs: MutableList<D2Array<Double>> = mutableListOf()
+        val Hs = List(n) {
+            var p = it
             var H: D2Array<Double> = mk.identity(3)
             while (parent[p] != -1) {
                 if (p to parent[p] !in edges) return Output.Failure("Invalid tree of images supplied")
 
-                H = JvmLinAlg.dot(H, edges[p to parent[p]]!!)
+                H = H dot edges[p to parent[p]]!!
                 p = parent[p]
             }
-            Hs.add(H)
+            H
         }
 
         return Output.Success(Hs)
@@ -106,7 +104,7 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
     private fun estimateResultBBox(imgs: List<D3Array<Byte>>, Hs: List<D2Array<Double>>): Bbox {
         val bbox = Bbox()
         for (i in imgs.indices) {
-            val (h, w, _) = imgs[i].shape
+            val (h, w) = imgs[i].shape
             bbox.grow(pt(0, 0) transform Hs[i])
             bbox.grow(pt(w, 0) transform Hs[i])
             bbox.grow(pt(w, h) transform Hs[i])
@@ -144,14 +142,14 @@ class StitchingAlgorithm(private val homographyAlgorithm: EstimateHomographyAlgo
                         for (i in imgs.indices) {
                             val ptSrc: Point = (ptDst + bbox.min()) transform HsInv[i]
 
-                            val (rows, cols, _) = imgs[i].shape
+                            val (rows, cols) = imgs[i].shape
 
                             val xSrc: Int = round(ptSrc.x).toInt()
                             val ySrc: Int = round(ptSrc.y).toInt()
 
                             if (xSrc in 0 until cols && ySrc in 0 until rows) {
                                 result[y, x] = imgs[i][ySrc, xSrc]
-                                break;
+                                break
                             }
                         }
                     }

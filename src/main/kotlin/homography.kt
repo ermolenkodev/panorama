@@ -1,17 +1,24 @@
-import org.jetbrains.kotlinx.multik.api.*
 import org.jetbrains.kotlinx.multik.api.linalg.solve
+import org.jetbrains.kotlinx.multik.api.mk
+import org.jetbrains.kotlinx.multik.api.ndarray
+import org.jetbrains.kotlinx.multik.api.ones
+import org.jetbrains.kotlinx.multik.api.zeros
 import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
-import org.jetbrains.kotlinx.multik.ndarray.data.*
+import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
+import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
+import org.jetbrains.kotlinx.multik.ndarray.data.get
+import org.jetbrains.kotlinx.multik.ndarray.data.set
 import org.jetbrains.kotlinx.multik.ndarray.operations.minus
 import org.opencv.calib3d.Calib3d
-import org.opencv.core.*
-import java.util.Random
+import org.opencv.core.Mat
+import org.opencv.core.Point
+import java.util.*
 import java.util.logging.Logger
 
 /**
  * Interface aim to encapsulate Homography estimation logic
  **/
-sealed interface EstimateHomographyAlgorithm {
+interface EstimateHomographyAlgorithm {
     fun estimateHomography(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<D2Array<Double>>
 }
 
@@ -21,9 +28,8 @@ sealed interface EstimateHomographyAlgorithm {
  * The only purpose of this is to practice to work with Multik and Kotlin
  **/
 class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipeline) : EstimateHomographyAlgorithm {
-    companion object {
-        val LOG = Logger.getLogger(MultikImplementation::class.java.name)
-    }
+
+    private val logger = Logger.getLogger(MultikImplementation::class.java.name)
 
     override fun estimateHomography(img1: D3Array<Byte>, img2: D3Array<Byte>): Output<D2Array<Double>> {
         val result = keypointsPipeline.run(img1, img2)
@@ -56,7 +62,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
             try {
                 randomSample(sample, nMatches)
             } catch (e: RuntimeException) {
-                LOG.info(e.message)
+                logger.info(e.message)
                 continue
             }
 
@@ -73,7 +79,8 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
             // count points which projection error (in pixels) less than threshold
             val support = pointsLhs.indices.count { idx ->
                 val proj = pointsLhs[idx] transform H
-                JvmLinAlg.norm(proj.asMk() - pointsRhs[idx].asMk()) < pxErrorThresh
+
+                mk.linalg.norm(proj.asMk() - pointsRhs[idx].asMk()) < pxErrorThresh
             }
 
             if (support > bestSupport) {
@@ -95,9 +102,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
      * Solving system of 8 equation formed from 4 point correspondences
      * Solution is 8 elements of homography matrix and the 9th element is known to be 1.0
      **/
-    private fun estimateHomography4Points(
-        pointsPairs: List<Pair<Point, Point>> 
-    ): Output<D2Array<Double>> {
+    private fun estimateHomography4Points(pointsPairs: List<Pair<Point, Point>>): Output<D2Array<Double>> {
         val A = mk.zeros<Double>(8, 9)
         for (i in pointsPairs.indices) {
             val points = pointsPairs[i].toList()
@@ -114,7 +119,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
         }
 
         return try {
-            val h = JvmLinAlg.solve(A[0..8, 0..8], A[0..8, 8])
+            val h = mk.linalg.solve(A[0..8, 0..8], A[0..8, 8])
 
             Output.Success(
                 mk.ndarray(DoubleArray(9) { idx ->
@@ -122,7 +127,7 @@ class MultikImplementation(private val keypointsPipeline: KeypointsMatchingPipel
                         idx < 8 -> h[idx]
                         else -> 1.0
                     }
-                }).reshape(3, 3)
+                }, 3, 3)
             )
         } catch (e: RuntimeException) {
             Output.Failure("Failed to solve DLT system", e)

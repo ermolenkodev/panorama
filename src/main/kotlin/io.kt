@@ -2,8 +2,8 @@ import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
 import org.opencv.core.Mat
 import org.opencv.imgcodecs.Imgcodecs
 
-sealed interface ImageIo {
-    fun imread(path: String) : D3Array<Byte>
+interface ImageIo {
+    fun imread(path: String): D3Array<Byte>
     fun imwrite(path: String, img: D3Array<Byte>)
 }
 
@@ -19,6 +19,6 @@ class OpencvImageIo : ImageIo {
     }
 }
 
-fun OpencvImageIo.batchRead(paths: Collection<String>) : List<D3Array<Byte>> {
+fun OpencvImageIo.batchRead(paths: Collection<String>): List<D3Array<Byte>> {
     return paths.map { imread(it) }
 }

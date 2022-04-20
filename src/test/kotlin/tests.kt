@@ -1,25 +1,26 @@
+import org.jetbrains.kotlinx.multik.api.JvmEngineType
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
 import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
-import org.jetbrains.kotlinx.multik.ndarray.data.get
-import org.jetbrains.kotlinx.multik.ndarray.operations.forEachMultiIndexed
 import org.opencv.features2d.FlannBasedMatcher
 import org.opencv.features2d.SIFT
 import java.util.logging.Logger
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 internal class StitchSampleImagesTest {
-    var imgs : List<D3Array<Byte>>
+    var imgs: List<D3Array<Byte>>
     val io = OpencvImageIo()
 
     init {
+        mk.setEngine(JvmEngineType)
         nu.pattern.OpenCV.loadShared()
-        imgs = io.batchRead(listOf(
-            "${projectRoot()}/assets/hiking_left.JPG",
-            "${projectRoot()}/assets/hiking_right.JPG"
-        ))
+        imgs = io.batchRead(
+            listOf(
+                "${projectRoot()}/assets/hiking_left.JPG",
+                "${projectRoot()}/assets/hiking_right.JPG"
+            )
+        )
     }
 
     @Test

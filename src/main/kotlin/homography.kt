@@ -3,7 +3,6 @@ import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.api.ones
 import org.jetbrains.kotlinx.multik.api.zeros
-import org.jetbrains.kotlinx.multik.jvm.linalg.JvmLinAlg
 import org.jetbrains.kotlinx.multik.ndarray.data.D2Array
 import org.jetbrains.kotlinx.multik.ndarray.data.D3Array
 import org.jetbrains.kotlinx.multik.ndarray.data.get
